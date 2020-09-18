@@ -1,0 +1,544 @@
+---
+title: "RF Model"
+output: word_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## R Markdown
+```{r}
+#install.packages("xlsx")
+library(xlsx)
+
+library("openxlsx")
+train_binarydata= read.xlsx("E:/MS_Studies/572/assignments/assignment4/IMB651-XLS-ENG.xlsx",sheet = 2)
+test_binarydata=read.xlsx("E:/MS_Studies/572/assignments/assignment4/IMB651-XLS-ENG.xlsx",sheet = 3)
+
+train_multidata=read.xlsx("E:/MS_Studies/572/assignments/assignment4/IMB651-XLS-ENG.xlsx",sheet = 4)
+test_multidata=read.xlsx("E:/MS_Studies/572/assignments/assignment4/IMB651-XLS-ENG.xlsx",sheet = 5)
+
+
+```
+
+##1.2
+```{r}
+i=0
+x=c()
+for(i in 1:ncol(train_binarydata))
+x[i]=sum(is.null(train_binarydata))
+
+##no missing data in the provided training and test data set
+
+```
+
+##1.4 Quasi complete separation
+```{r}
+#install.packages("brglm2")
+library(brglm2)
+unnecessary_var=which(names(train_binarydata) %in% c("State","Country","AdmissionDate","DischargeDate"))
+train_binary_final_Data=train_binarydata[,-unnecessary_var]
+new_train_binary=train_binary_final_Data[,-47]
+new_train_binary$NPS_Status = as.factor(new_train_binary$NPS_Status)
+quasi_fit=glm(new_train_binary$NPS_Status~.,data=new_train_binary,family=binomial("logit"),method = "detect_separation",linear_program="dual")
+variable_Selection=quasi_fit$betas
+variable_Selection1=as.data.frame(cbind(row.names(as.data.frame(quasi_fit$betas)),variable_Selection))
+var_nonquasi= subset(variable_Selection1, variable_Selection1[[2]]==0)
+var_nonquasi
+
+
+#x=match(final_var,names(new_train_binary))
+final_var=c("HospitalNo2","AgeYrs","Sex","Department","Estimatedcost","InsPayorcategory","CE_ACCESSIBILITY","CE_CSAT"
+,"CE_VALUEFORMONEY","EM_IMMEDIATEATTENTION","EM_NURSING"
+,"EM_DOCTOR"
+,"EM_OVERALL"
+,"AD_TIME","AD_TARRIFFPACKAGESEXPLAINATION"
+,"AD_STAFFATTITUDE"
+,"INR_ROOMCLEANLINESS"
+,"INR_ROOMPEACE"
+,"INR_ROOMEQUIPMENT"
+,"INR_ROOMAMBIENCE"
+,"FNB_FOODQUALITY"
+,"FNB_FOODDELIVERYTIME"
+,"FNB_DIETICIAN"
+,"FNB_STAFFATTITUDE"
+,"AE_ATTENDEECARE"
+,"AE_PATIENTSTATUSINFO"
+,"AE_ATTENDEEFOOD"
+,"DOC_TREATMENTEXPLAINATION"
+,"DOC_ATTITUDE"
+,"DOC_VISITS"
+,"DOC_TREATMENTEFFECTIVENESS"
+,"NS_CALLBELLRESPONSE","NS_NURSESATTITUDE"	,"NS_NURSEPROACTIVENESS",	"NS_NURSEPATIENCE"
+,"OVS_OVERALLSTAFFATTITUDE",	"OVS_OVERALLSTAFFPROMPTNESS"	,"OVS_SECURITYATTITUDE",	"DP_DISCHARGETIME",	"DP_DISCHARGEQUERIES"	,"DP_DISCHARGEPROCESS","NPS_Status"
+
+
+)
+train_binary_final_Data= new_train_binary[,final_var]
+test_binary_final_data=test_binarydata[,final_var]
+train_multi_final_data=train_multidata[,final_var]
+test_multi_final_data=test_multidata[,final_var]
+
+x= which(names(train_binarydata) %in% final_var)
+removed_variables=names(train_binarydata[,-x])
+removed_variables
+```
+
+
+##1.6 converting attributes to ordinal variables
+```{r}
+train_binary_final_Data1=train_binary_final_Data
+i=0
+for (i in 1:(ncol(train_binary_final_Data)-1))
+  {
+  
+if(class(train_binary_final_Data[[i]])=="factor" | (is.numeric(train_binary_final_Data[[i]])))
+{
+ 
+   train_binary_final_Data1[[i]]=as.factor(train_binary_final_Data[[i]])  
+    if (nlevels(train_binary_final_Data1[[i]])<5)
+     train_binary_final_Data1[[i]]=as.ordered(train_binary_final_Data1[[i]])  
+    else
+      train_binary_final_Data1[[i]]=as.numeric(train_binary_final_Data[[i]])   
+
+}
+  
+  
+}  
+
+##doing the same for test data 
+test_binary_final_data1=test_binary_final_data
+i=0
+for (i in 1:(ncol(test_binary_final_data1)-1))
+  {
+  
+if(class(test_binary_final_data[[i]])=="factor" | (is.numeric(test_binary_final_data[[i]])))
+{
+ 
+   test_binary_final_data1[[i]]=as.factor(test_binary_final_data[[i]])  
+    if (nlevels(test_binary_final_data1[[i]])<5)
+     test_binary_final_data1[[i]]=as.ordered(test_binary_final_data1[[i]])  
+    else
+      test_binary_final_data1[[i]]=as.numeric(test_binary_final_data[[i]])   
+
+}
+  
+  
+}  
+
+##converting to ordinal for train and test of multi class
+train_multi_final_data1=train_multi_final_data
+i=0
+for (i in 1:(ncol(train_multi_final_data1)-1))
+  {
+  
+if(class(train_multi_final_data[[i]])=="factor" | (is.numeric(train_multi_final_data[[i]])))
+{
+ 
+   train_multi_final_data1[[i]]=as.factor(train_multi_final_data[[i]])  
+    if (nlevels(train_multi_final_data1[[i]])<5)
+     train_multi_final_data1[[i]]=as.ordered(train_multi_final_data1[[i]])  
+    else
+      train_multi_final_data1[[i]]=as.numeric(train_multi_final_data[[i]])   
+
+}
+}
+train_multi_final_data1[[42]]=as.factor(train_multi_final_data[[42]])  
+
+
+test_multi_final_data1=test_multi_final_data
+i=0
+for (i in 1:(ncol(test_multi_final_data1)-1))
+  {
+  
+if(class(test_multi_final_data[[i]])=="factor" | (is.numeric(test_multi_final_data[[i]])))
+{
+ 
+   test_multi_final_data1[[i]]=as.factor(test_multi_final_data[[i]])  
+    if (nlevels(test_multi_final_data1[[i]])<5)
+     test_multi_final_data1[[i]]=as.ordered(test_multi_final_data1[[i]])  
+    else
+      test_multi_final_data1[[i]]=as.numeric(test_multi_final_data[[i]])   
+
+}
+  
+  
+} 
+
+test_multi_final_data1[[42]]=as.factor(test_multi_final_data[[42]])
+
+
+```
+
+##1.6 logistic regression on binary after conversion to ordinal variables
+```{r}
+library(MASS)
+model <- glm(train_binary_final_Data1$NPS_Status~., data = train_binary_final_Data1, family = binomial("logit"))
+  step_model=stepAIC(model,trace = FALSE,direction="both")
+summary(step_model)
+step_model$anova
+
+test_binary_final_data1 <- subset(test_binary_final_data1,test_binary_final_data1$NS_NURSEPROACTIVENESS!="1")
+
+log_pred=predict(step_model,test_binary_final_data1,type="response")
+log_pred= ifelse(log_pred>0.5,"Promotor","Detractor")
+confusion_matrix=table(log_pred,test_binary_final_data1$NPS_Status)
+confusion_matrix
+accuracy=sum(diag(confusion_matrix))/sum(confusion_matrix)
+
+accuracy
+cat("accuracy for step wise model --",accuracy)
+```
+
+
+##NA check
+```{r}
+x=c()
+i=0
+for (i in 1: ncol(train_binary_final_Data1))
+  x[i]=sum(is.na(train_binary_final_Data1[[i]]))
+x
+
+```
+
+
+
+
+##1.7 random forest for binary class vs multiclass ( conisdering the variables from step wise)
+
+##formula = train_binary_final_Data1$NPS_Status ~ HospitalNo2 + 
+##   Department + Estimatedcost + CE_ACCESSIBILITY + CE_CSAT + 
+##   CE_VALUEFORMONEY + EM_NURSING + EM_DOCTOR + AD_TARRIFFPACKAGESEXPLAINATION + 
+##   AD_STAFFATTITUDE + INR_ROOMCLEANLINESS + INR_ROOMAMBIENCE + 
+##   FNB_FOODDELIVERYTIME + AE_PATIENTSTATUSINFO + AE_ATTENDEEFOOD + 
+##   DOC_TREATMENTEXPLAINATION + DOC_VISITS + NS_CALLBELLRESPONSE + 
+##   NS_NURSEPROACTIVENESS + OVS_OVERALLSTAFFPROMPTNESS + DP_DISCHARGEQUERIES, 
+```{r}
+library(randomForest)
+p=0
+for (p in 1:ncol(train_binary_final_Data1))
+{
+  if(is.character(train_binary_final_Data1[[p]]))
+   train_binary_final_Data1[[p]]=as.factor(train_binary_final_Data1[[p]]) 
+}
+
+l=0
+for (l in 1:ncol(test_binary_final_data1))
+{
+  if(is.character(test_binary_final_data1[[l]]))
+   test_binary_final_data1[[l]]=as.factor(test_binary_final_data1[[l]]) 
+}
+accuracy=c()
+k <- 10
+nmethod <- 1
+folds <- cut(seq(1,nrow(train_binary_final_Data1)),breaks=k,labels=FALSE) 
+models.err <- matrix(-1,k,nmethod, dimnames=list(paste0("Fold", 1:k), c("rf")))
+i=0
+for(i in 1:k)
+{ 
+  trainIndexes <- which(folds==i, arr.ind=TRUE) 
+  Validation <- train_binary_final_Data1[trainIndexes, ] 
+  Train <- train_binary_final_Data1[-trainIndexes, ] 
+  mtry_list= c(1:8)
+  pr.err <- c()
+  s=0
+  for(mt in mtry_list){
+    rf <- randomForest(formula = Train$NPS_Status ~ HospitalNo2 + 
+    Department + Estimatedcost + CE_ACCESSIBILITY + CE_CSAT + 
+    CE_VALUEFORMONEY + EM_NURSING + EM_DOCTOR + AD_TARRIFFPACKAGESEXPLAINATION + 
+    AD_STAFFATTITUDE + INR_ROOMCLEANLINESS + INR_ROOMAMBIENCE + 
+    FNB_FOODDELIVERYTIME + AE_PATIENTSTATUSINFO + AE_ATTENDEEFOOD + 
+    DOC_TREATMENTEXPLAINATION + DOC_VISITS + NS_CALLBELLRESPONSE + 
+    NS_NURSEPROACTIVENESS + OVS_OVERALLSTAFFPROMPTNESS + DP_DISCHARGEQUERIES, data = Train, ntree = 100, mtry = mt,replace=T)
+    predicted <- predict(rf, newdata = Validation, type = "class")
+       pr.err <- c(pr.err,mean(Validation$NPS_Status != predicted))
+  }
+  
+    bestmtry <- which.min(pr.err)
+  
+  #test_binary_final_data1is the test data given in the case study
+
+ rf <- randomForest(formula = Train$NPS_Status ~ HospitalNo2 + 
+    Department + Estimatedcost + CE_ACCESSIBILITY + CE_CSAT + 
+    CE_VALUEFORMONEY + EM_NURSING + EM_DOCTOR + AD_TARRIFFPACKAGESEXPLAINATION + 
+    AD_STAFFATTITUDE + INR_ROOMCLEANLINESS + INR_ROOMAMBIENCE + 
+    FNB_FOODDELIVERYTIME + AE_PATIENTSTATUSINFO + AE_ATTENDEEFOOD + 
+    DOC_TREATMENTEXPLAINATION + DOC_VISITS + NS_CALLBELLRESPONSE + 
+    NS_NURSEPROACTIVENESS + OVS_OVERALLSTAFFPROMPTNESS + DP_DISCHARGEQUERIES, data = Train, ntree = 200, mtry = bestmtry)
+  rf.pred <- predict(rf, newdata = test_binary_final_data1, type = "class")
+  rf.conf=table(rf.pred,test_binary_final_data1$NPS_Status)
+  accuracy[i]=sum(diag(rf.conf))/sum(rf.conf)
+ models.err[i] <- mean(test_binary_final_data1$NPS_Status != rf.pred)
+}
+
+accuracy_rf=1-mean(models.err)
+accuracy_rf
+cat("accuracy of Random forest for binary classification :", mean(accuracy))
+```
+
+
+##Random forest for multi classification
+```{r}
+p=0
+for (p in 1:ncol(train_multi_final_data1))
+{
+  if(is.character(train_multi_final_data1[[p]]))
+   train_multi_final_data1[[p]]=as.factor(train_multi_final_data1[[p]]) 
+}
+
+l=0
+for (l in 1:ncol(test_multi_final_data1))
+{
+  if(is.character(test_multi_final_data1[[l]]))
+   test_multi_final_data1[[l]]=as.factor(test_multi_final_data1[[l]]) 
+}
+accuracy_multi=c()
+k <- 10
+nmethod <- 1
+folds <- cut(seq(1,nrow(train_multi_final_data1)),breaks=k,labels=FALSE) 
+models.err <- matrix(-1,k,nmethod, dimnames=list(paste0("Fold", 1:k), c("rf")))
+i=0
+for(i in 1:k)
+{ 
+  trainIndexes <- which(folds==i, arr.ind=TRUE) 
+  Validation <- train_multi_final_data1[trainIndexes, ] 
+  Train <- train_multi_final_data1[-trainIndexes, ] 
+  mtry_list= c(1:8)
+  pr.err <- c()
+  s=0
+  for(mt in mtry_list){
+    rf <- randomForest(formula = Train$NPS_Status ~  
+    Department + Estimatedcost + CE_ACCESSIBILITY + CE_CSAT + 
+    CE_VALUEFORMONEY + EM_NURSING + EM_DOCTOR + AD_TARRIFFPACKAGESEXPLAINATION + 
+    AD_STAFFATTITUDE + INR_ROOMCLEANLINESS + INR_ROOMAMBIENCE + 
+    FNB_FOODDELIVERYTIME + AE_PATIENTSTATUSINFO + AE_ATTENDEEFOOD + 
+    DOC_TREATMENTEXPLAINATION + DOC_VISITS + NS_CALLBELLRESPONSE + 
+    NS_NURSEPROACTIVENESS + OVS_OVERALLSTAFFPROMPTNESS + DP_DISCHARGEQUERIES, data = Train, ntree = 200, mtry = mt,replace=T)
+    predicted <- predict(rf, newdata = Validation, type = "class")
+       pr.err <- c(pr.err,mean(Validation$NPS_Status != predicted))
+  }
+  
+    bestmtry <- which.min(pr.err)
+  
+    #test_binary_final_data1is the test data given in the case study
+
+ rf <- randomForest(formula = Train$NPS_Status ~  
+    Department + Estimatedcost + CE_ACCESSIBILITY + CE_CSAT + 
+    CE_VALUEFORMONEY + EM_NURSING + EM_DOCTOR + AD_TARRIFFPACKAGESEXPLAINATION + 
+    AD_STAFFATTITUDE + INR_ROOMCLEANLINESS + INR_ROOMAMBIENCE + 
+    FNB_FOODDELIVERYTIME + AE_PATIENTSTATUSINFO + AE_ATTENDEEFOOD + 
+    DOC_TREATMENTEXPLAINATION + DOC_VISITS + NS_CALLBELLRESPONSE + 
+    NS_NURSEPROACTIVENESS + OVS_OVERALLSTAFFPROMPTNESS + DP_DISCHARGEQUERIES, data = Train, ntree = 100, mtry = bestmtry)
+  rf.pred <- predict(rf, newdata = test_multi_final_data1, type = "class")
+  rf.conf=table(rf.pred,test_multi_final_data1$NPS_Status)
+  accuracy_multi[i]=sum(diag(rf.conf))/sum(rf.conf)
+ models.err[i] <- mean(test_multi_final_data1$NPS_Status != rf.pred)
+}
+
+accuracy_rf_multi=1-mean(models.err)
+accuracy_rf_multi
+cat("accuracy of Random forest for multi classification :", mean(accuracy_multi))
+```
+
+##1.8 effect of balancing method- undersampling -RF
+```{r}
+library(caret)
+set.seed(123)
+down_train <- downSample(x = train_binary_final_Data1[, -ncol(train_binary_final_Data1)],
+                         y = train_binary_final_Data1$NPS_Status)
+
+table(train_binary_final_Data1$NPS_Status)
+table(down_train$Class)
+##down_train is the undersampling data 
+
+
+accuracy=c()
+k <- 10
+nmethod <- 1
+folds <- cut(seq(1,nrow(down_train)),breaks=k,labels=FALSE) 
+models.err <- matrix(-1,k,nmethod, dimnames=list(paste0("Fold", 1:k), c("rf")))
+i=0
+for(i in 1:k)
+{ 
+  trainIndexes <- which(folds==i, arr.ind=TRUE) 
+  Validation <- down_train[trainIndexes, ] 
+  Train <- down_train[-trainIndexes, ] 
+  mtry_list= c(1:8)
+  pr.err <- c()
+  s=0
+  for(mt in mtry_list){
+    rf <- randomForest(formula = down_train$Class ~ HospitalNo2 + 
+    Department + Estimatedcost + CE_ACCESSIBILITY + CE_CSAT + 
+    CE_VALUEFORMONEY + EM_NURSING + EM_DOCTOR + AD_TARRIFFPACKAGESEXPLAINATION + 
+    AD_STAFFATTITUDE + INR_ROOMCLEANLINESS + INR_ROOMAMBIENCE + 
+    FNB_FOODDELIVERYTIME + AE_PATIENTSTATUSINFO + AE_ATTENDEEFOOD + 
+    DOC_TREATMENTEXPLAINATION + DOC_VISITS + NS_CALLBELLRESPONSE + 
+    NS_NURSEPROACTIVENESS + OVS_OVERALLSTAFFPROMPTNESS + DP_DISCHARGEQUERIES, data = down_train, ntree = 100, mtry = mt,replace=T)
+    predicted <- predict(rf, newdata = Validation, type = "class")
+       pr.err <- c(pr.err,mean(Validation$Class != predicted))
+  }
+  
+    bestmtry <- which.min(pr.err)
+  #test_binary_final_data1is the test data given in the case study
+
+ rf <- randomForest(formula = down_train$Class ~ HospitalNo2 + 
+    Department + Estimatedcost + CE_ACCESSIBILITY + CE_CSAT + 
+    CE_VALUEFORMONEY + EM_NURSING + EM_DOCTOR + AD_TARRIFFPACKAGESEXPLAINATION + 
+    AD_STAFFATTITUDE + INR_ROOMCLEANLINESS + INR_ROOMAMBIENCE + 
+    FNB_FOODDELIVERYTIME + AE_PATIENTSTATUSINFO + AE_ATTENDEEFOOD + 
+    DOC_TREATMENTEXPLAINATION + DOC_VISITS + NS_CALLBELLRESPONSE + 
+    NS_NURSEPROACTIVENESS + OVS_OVERALLSTAFFPROMPTNESS + DP_DISCHARGEQUERIES, data = down_train, ntree = 200, mtry = bestmtry)
+  rf.pred <- predict(rf, newdata = test_binary_final_data1, type = "class")
+  rf.conf=table(rf.pred,test_binary_final_data1$NPS_Status)
+  #accuracy[i]=sum(diag(rf.conf))/sum(rf.conf)
+ models.err[i] <- mean(test_binary_final_data1$NPS_Status != rf.pred)
+}
+
+accuracy_rf_down=1-mean(models.err)
+accuracy_rf_down
+cat("accuracy of Random forest for binary classification with undersampled data :", mean(accuracy_rf_down))
+
+
+```
+##on undersampling, the accuracy has reduced from 75 to 71.75 % for binary classification RF ensemble method
+
+
+##effect of balancing method- oversampling -RF
+```{r}
+set.seed(234)
+over_train <- upSample(x = train_binary_final_Data1[, -ncol(train_binary_final_Data1)],
+                         y = train_binary_final_Data1$NPS_Status)
+
+table(train_binary_final_Data1$NPS_Status)
+table(over_train$Class)
+##over_train is the undersampling data 
+
+
+accuracy=c()
+k <- 10
+nmethod <- 1
+folds <- cut(seq(1,nrow(over_train)),breaks=k,labels=FALSE) 
+models.err <- matrix(-1,k,nmethod, dimnames=list(paste0("Fold", 1:k), c("rf")))
+i=0
+for(i in 1:k)
+{ 
+  trainIndexes <- which(folds==i, arr.ind=TRUE) 
+  Validation <- over_train[trainIndexes, ] 
+  Train <- over_train[-trainIndexes, ] 
+  mtry_list= c(1:8)
+  pr.err <- c()
+  s=0
+  for(mt in mtry_list){
+    rf <- randomForest(formula = over_train$Class ~ HospitalNo2 + 
+    Department + Estimatedcost + CE_ACCESSIBILITY + CE_CSAT + 
+    CE_VALUEFORMONEY + EM_NURSING + EM_DOCTOR + AD_TARRIFFPACKAGESEXPLAINATION + 
+    AD_STAFFATTITUDE + INR_ROOMCLEANLINESS + INR_ROOMAMBIENCE + 
+    FNB_FOODDELIVERYTIME + AE_PATIENTSTATUSINFO + AE_ATTENDEEFOOD + 
+    DOC_TREATMENTEXPLAINATION + DOC_VISITS + NS_CALLBELLRESPONSE + 
+    NS_NURSEPROACTIVENESS + OVS_OVERALLSTAFFPROMPTNESS + DP_DISCHARGEQUERIES, data = over_train, ntree = 100, mtry = mt,replace=T)
+    predicted <- predict(rf, newdata = Validation, type = "class")
+       pr.err <- c(pr.err,mean(Validation$Class != predicted))
+  }
+  
+    bestmtry <- which.min(pr.err)
+  #test_binary_final_data1is the test data given in the case study
+
+ rf <- randomForest(formula = over_train$Class ~ HospitalNo2 + 
+    Department + Estimatedcost + CE_ACCESSIBILITY + CE_CSAT + 
+    CE_VALUEFORMONEY + EM_NURSING + EM_DOCTOR + AD_TARRIFFPACKAGESEXPLAINATION + 
+    AD_STAFFATTITUDE + INR_ROOMCLEANLINESS + INR_ROOMAMBIENCE + 
+    FNB_FOODDELIVERYTIME + AE_PATIENTSTATUSINFO + AE_ATTENDEEFOOD + 
+    DOC_TREATMENTEXPLAINATION + DOC_VISITS + NS_CALLBELLRESPONSE + 
+    NS_NURSEPROACTIVENESS + OVS_OVERALLSTAFFPROMPTNESS + DP_DISCHARGEQUERIES, data = over_train, ntree = 200, mtry = bestmtry)
+  rf.pred <- predict(rf, newdata = test_binary_final_data1, type = "class")
+  rf.conf=table(rf.pred,test_binary_final_data1$NPS_Status)
+  #accuracy[i]=sum(diag(rf.conf))/sum(rf.conf)
+ models.err[i] <- mean(test_binary_final_data1$NPS_Status != rf.pred)
+}
+
+accuracy_rf_over=1-mean(models.err)
+accuracy_rf_over
+cat("accuracy of Random forest for binary classification with oversampled data :", mean(accuracy_rf_over))
+
+```
+
+##effect of balancing method- SMOTE( under and over sampling) -RF
+
+```{r}
+library(DMwR)
+var=c("HospitalNo2","Department","Estimatedcost", "CE_ACCESSIBILITY","CE_CSAT","CE_VALUEFORMONEY","EM_NURSING","EM_DOCTOR","AD_TARRIFFPACKAGESEXPLAINATION","AD_STAFFATTITUDE","INR_ROOMCLEANLINESS","INR_ROOMAMBIENCE","FNB_FOODDELIVERYTIME","AE_PATIENTSTATUSINFO","AE_ATTENDEEFOOD","DOC_TREATMENTEXPLAINATION","DOC_VISITS","NS_CALLBELLRESPONSE","NS_NURSEPROACTIVENESS","OVS_OVERALLSTAFFPROMPTNESS","DP_DISCHARGEQUERIES","NPS_Status")
+training=train_binary_final_Data1[,var]
+training=subset(training,training$EM_DOCTOR !=1)
+testing=test_binary_final_data1[,var]
+testing=subset(testing,testing$NS_NURSEPROACTIVENESS !=1)
+table(testing$NS_NURSEPROACTIVENESS)
+testing$NS_NURSEPROACTIVENESS=droplevels(testing$NS_NURSEPROACTIVENESS,exclude="1")
+
+##converting variables to not ordered as smote creates NA values with ordered variables
+for (i in 1:ncol(training))
+{
+  if(is.factor(training[[i]]))
+  training[[i]]= factor( training[[i]] , ordered = FALSE )
+}
+training[,"Department"]=as.factor(training[,"Department"])
+testing[,"Department"]=as.factor(testing[,"Department"])
+
+
+balanced_data=SMOTE(NPS_Status~., training, perc.over = 35,  perc.under = 400)#k=5 control parameter
+
+
+balanced_data1=balanced_data
+i=0
+for (i in 1:(ncol(balanced_data)-1))
+  {
+  
+if(class(balanced_data[[i]])=="factor" | (is.numeric(balanced_data[[i]])))
+{
+ 
+   balanced_data1[[i]]=as.factor(balanced_data[[i]])  
+    if (nlevels(balanced_data1[[i]])<5)
+     balanced_data1[[i]]=as.ordered(balanced_data1[[i]])  
+    else
+      balanced_data1[[i]]=as.numeric(balanced_data[[i]])   
+
+}
+}
+balanced_data1[[22]]=as.factor(balanced_data[[22]])
+balanced_data1[["Department"]]=as.factor(balanced_data[["Department"]])
+testing[[22]]=as.factor(testing[[22]])
+
+k <- 10
+nmethod <- 1
+folds <- cut(seq(1,nrow(balanced_data1)),breaks=k,labels=FALSE) 
+models.err <- matrix(-1,k,nmethod, dimnames=list(paste0("Fold", 1:k), c("rf")))
+i=0
+for(i in 1:k)
+{ 
+  trainIndexes <- which(folds==i, arr.ind=TRUE) 
+  Validation <- balanced_data1[trainIndexes, ] 
+  Train <- balanced_data1[-trainIndexes, ] 
+  mtry_list= c(1:8)
+  pr.err <- c()
+  s=0
+  for(mt in mtry_list){
+    rf <- randomForest( balanced_data1$NPS_Status~., data = balanced_data1, ntree = 100, mtry = mt,replace=T)
+    predicted <- predict(rf, newdata = Validation, type = "class")
+       pr.err <- c(pr.err,mean(Validation$NPS_Status != predicted))
+  }
+  
+    bestmtry <- which.min(pr.err)
+  #test_binary_final_data1is the test data given in the case study
+
+ rf_x <- randomForest(balanced_data1$NPS_Status ~., data = balanced_data1, ntree = 200, mtry = bestmtry)
+  rf.pred <- predict(rf_x, newdata = testing, type = "class")
+  rf.conf=table(rf.pred,testing$NPS_Status)
+  #accuracy[i]=sum(diag(rf.conf))/sum(rf.conf)
+ models.err[i] <- mean(testing$NPS_Status != rf.pred)
+}
+
+accuracy_rf_smote=1-mean(models.err)
+accuracy_rf_smote
+cat("accuracy of Random forest for binary classification with SMOTE data :", mean(accuracy_rf_smote))
+```
+

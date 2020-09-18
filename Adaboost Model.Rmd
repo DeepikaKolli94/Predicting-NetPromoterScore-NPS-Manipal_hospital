@@ -1,0 +1,410 @@
+---
+output:
+  word_document: default
+  html_document: default
+---
+
+
+```{r}
+rm(list=ls())
+
+setwd("C:\\Users\\thoma\\Documents\\UIC\\Courses\\IDS 572 Data Mining\\Asst4")
+
+library(readxl)
+library(dplyr)
+library(tidyr)
+library(randomForest)
+
+
+
+
+Train_multiclass <- read_excel("IMB651-XLS-ENG.xlsx", sheet = "Training Data for Multi-Class M",
+                    col_names = T)
+
+Test_multiclass <- read_excel("IMB651-XLS-ENG.xlsx", sheet = "Test Data for Multi-Class Model",
+                    col_names = T)
+
+```
+
+
+```{r}
+print(dim(Train_multiclass))
+print(dim(Test_multiclass))
+
+```
+
+
+```{r}
+
+str(Train_multiclass)
+
+
+# types of variables in the data
+table(unlist(lapply(Train_multiclass, class)))
+
+## Checking for missing values
+sum(is.na(Train_multiclass))
+
+## Target Variables
+# NPS_Status
+
+table(Train_multiclass$NPS_Status)
+
+
+# dropping the 1st column
+Train2_multiclass <- Train_multiclass[,-1]
+
+```
+
+
+```{r}
+# Q 6 Part 1 
+## Converting a 3 class problem to a Binary Class problem for Detractors
+
+Train2_multiclass$Detractor_class <-ifelse(Train2_multiclass$NPS_Status=="Detractor",1,0)
+table(Train2_multiclass$Detractor_class)
+
+```
+
+
+
+## Converting survey questions to ordinal variables
+```{r}
+
+cols_exclude <- c("CE_NPS","NPS_Status","AdmissionDate","DischargeDate",
+                  "Estimatedcost","AgeYrs","HospitalNo2",
+                  "LengthofStay","MaritalStatus","Sex",
+                   "BedCategory","Department", "InsPayorcategory",
+                   "State","Country","STATEZONE","Detractor_class")
+
+
+## subsetting for only survey variables
+survey_vars <- Train2_multiclass[, !(colnames(Train2_multiclass) %in% cols_exclude), drop                 = FALSE]
+
+colnames(survey_vars)
+
+## converting survey variables to ordinal variables
+ordinal_vars <- survey_vars %>% 
+  mutate_if(is.numeric,as.ordered)
+
+
+
+cols_to_keep <- c("LengthofStay","MaritalStatus","Sex",
+                  "BedCategory","Department", "InsPayorcategory",
+                  "Estimatedcost","AgeYrs")
+
+Train3_multiclass <- cbind(Train2_multiclass[,cols_to_keep],ordinal_vars,
+                           Train2_multiclass["NPS_Status"])
+
+
+```
+
+
+## Prepping Test Data
+
+```{r}
+Test2_multiclass <- Test_multiclass[,-1]
+
+## Creating a 2 class variable for Detractors
+
+Test2_multiclass$Detractor_class <- ifelse(Test2_multiclass$NPS_Status=="Detractor",1,0)
+table(Test2_multiclass$Detractor_class)
+
+## subsetting for only survey variables
+survey_vars_test <- Test2_multiclass[, !(colnames(Test2_multiclass) %in% cols_exclude),                       drop = FALSE]
+
+colnames(survey_vars_test)
+
+## converting survey variables to ordinal variables
+ordinal_vars_test <- survey_vars_test %>% 
+  mutate_if(is.numeric,as.ordered)
+
+
+dim(ordinal_vars)
+
+
+## Multiclass dataset
+Test3_multiclass <- cbind(Test2_multiclass[,cols_to_keep],ordinal_vars_test,
+                           Test2_multiclass["NPS_Status"])
+
+```
+
+
+##Removing variables for Quasi_complete Seperation
+
+```{r}
+colnames(Train3_multiclass)
+quasi_vars <- c("MaritalStatus","BedCategory","LengthofStay")
+
+Train4_multiclass <- Train3_multiclass[, !(colnames(Train3_multiclass) %in%                                   quasi_vars),drop = FALSE]
+
+Test4_multiclass <- Test3_multiclass[, !(colnames(Test3_multiclass) %in%                                   quasi_vars),drop = FALSE]
+
+```
+
+
+
+## Q 7
+```{r}
+
+# Converting character columns to factor variables for Randomforest
+
+class(Train4_multiclass$NPS_Status)
+
+Train4_multiclass$NPS_Status <- as.factor(Train4_multiclass$NPS_Status)
+
+Train5_multiclass <- Train4_multiclass %>% 
+  mutate_if(is.character,as.factor)
+
+
+# Converting character columns to factor variables for Randomforest
+
+Test4_multiclass$NPS_Status <- as.factor(Test4_multiclass$NPS_Status)
+
+Test5_multiclass <- Test4_multiclass %>% 
+  mutate_if(is.character,as.factor)
+
+
+## Adaboosting
+
+
+
+```{r}
+
+library(adabag)
+
+Test6_multiclass <- Test5_multiclass %>% 
+                    filter(NS_NURSEPROACTIVENESS!=1)
+  
+dim(Test5_multiclass)
+dim(Test6_multiclass)
+library(rpart)
+
+maxdep <- c(1:5)
+pr_val_err <- matrix()
+
+
+for(i in maxdep){
+    
+    boost_model <- boosting(NPS_Status~., data = Train5_multiclass, boos = T,
+                        mfinal = 100, coeflearn = "Breiman",
+                        control=rpart.control(maxdepth=i))
+    
+    boost_pred <- predict.boosting(boost_model,newdata=Test6_multiclass)
+    
+    # pr_val_err[i] <- which.min(boost_pred$error)
+    pr_val_err[i] <- boost_pred$error
+    print(paste0(maxdep[i],",",pr_val_err[i]))
+    
+
+  }
+
+minsplit <- c(5,10,15)
+pr_val_err2 <- matrix()
+
+for(j in 1:length(minsplit)){
+    
+    boost_model <- boosting(NPS_Status~., data = Train5_multiclass, boos = T,
+                        mfinal = 100, coeflearn = "Breiman",
+                        control=rpart.control(maxdepth=4, minsplit = j))
+    
+    boost_pred <- predict.boosting(boost_model,newdata=Test6_multiclass)
+    
+    # pr_val_err[i] <- which.min(boost_pred$error)
+    pr_val_err2[j] <- boost_pred$error
+    print(paste0(minsplit[j],",",pr_val_err2[j]))
+    
+
+}
+
+
+trees<- c(100,200,300,400)
+pr_val_err3 <- matrix()
+
+for(k in 1:length(trees)){
+    
+    boost_model <- boosting(NPS_Status~., data = Train5_multiclass, boos = T,
+                        mfinal = k, coeflearn = "Breiman",
+                        control=rpart.control(maxdepth=4, minsplit = 10,cp = 0.01))
+    
+    boost_pred <- predict.boosting(boost_model,newdata=Test6_multiclass)
+    
+    # pr_val_err[i] <- which.min(boost_pred$error)
+    pr_val_err3[k] <- boost_pred$error
+    print(paste0(trees[k],",",pr_val_err3[k]))
+    
+
+  }
+
+
+
+
+set.seed(123)
+
+boost_cv<- boosting.cv(NPS_Status~., data = Train5_multiclass, v = 5, boos = TRUE,mfinal = 300, coeflearn = "Breiman",  control=rpart.control(maxdepth=4, cp =0.01, minsplit =10), par=FALSE)
+
+boost_cv$error
+boost_cv$confusion
+
+set.seed(123)
+boost2 <- boosting(NPS_Status~., data = Train5_multiclass, boos = T,
+                        mfinal = 300, coeflearn = "Breiman",
+                   control=rpart.control(maxdepth=4, cp =0.01, minsplit =10))
+
+
+adaboost_pred <- predict.boosting(boost2,newdata=Test6_multiclass)
+# adaboost_pred
+
+cf <- adaboost_pred$confusion
+cf
+boost_err <- adaboost_pred$error
+
+acc <-  1-boost_err
+acc
+
+sens_Class1 <- cf[1,1]/(cf[1,1]+cf[1,2]+cf[1,3])
+sens_Class1
+
+sens_Class2 <- cf[2,2]/(cf[2,1]+cf[2,2]+cf[2,3])
+sens_Class2
+
+sens_Class3 <- cf[3,3]/(cf[3,1]+cf[3,2]+cf[3,3])
+sens_Class3
+
+
+
+```
+
+
+
+```{r}
+
+## Undersampling
+library(caret)
+under <- downSample(Train5_multiclass[,-41], Train5_multiclass$NPS_Status,
+           list = F, yname = "NPS_Status")
+class(under)
+dim(Train5_multiclass)
+dim(under)
+table(Train5_multiclass$NPS_Status)
+
+table(under$NPS_Status)
+
+boost_under <- boosting(NPS_Status~., data = under, boos = T,
+                        mfinal = 300, coeflearn = "Breiman",
+                   control=rpart.control(maxdepth=4, cp =0.01, minsplit =10))
+
+
+adaboost_pred_under <- predict.boosting(boost_under,newdata=Test6_multiclass)
+# adaboost_pred
+
+cf2 <- adaboost_pred_under$confusion
+cf2
+boost_err2 <- adaboost_pred_under$error
+
+acc2 <-  1-boost_err2
+acc2
+
+sens_Class1 <- cf2[1,1]/(cf2[1,1]+cf2[1,2]+cf2[1,3])
+sens_Class1
+
+sens_Class2 <- cf2[2,2]/(cf2[2,1]+cf2[2,2]+cf2[2,3])
+sens_Class2
+
+sens_Class3 <- cf2[3,3]/(cf2[3,1]+cf2[3,2]+cf2[3,3])
+sens_Class3
+
+
+```
+
+
+## Oversampling
+
+```{r}
+over <- upSample(Train5_multiclass[,-41], Train5_multiclass$NPS_Status,
+           list = F, yname = "NPS_Status")
+class(under)
+dim(Train5_multiclass)
+dim(over)
+table(Train5_multiclass$NPS_Status)
+
+table(over$NPS_Status)
+
+boost_over <- boosting(NPS_Status~., data = over, boos = T,
+                        mfinal = 300, coeflearn = "Breiman",
+                   control=rpart.control(maxdepth=4, cp =0.01, minsplit =10))
+
+
+adaboost_pred_over <- predict.boosting(boost_over,newdata=Test6_multiclass)
+# adaboost_pred
+
+cf3 <- adaboost_pred_over$confusion
+cf3
+boost_err3 <- adaboost_pred_over$error
+
+acc3 <-  1-boost_err3
+acc3
+
+sens_Class1 <- cf3[1,1]/(cf3[1,1]+cf3[1,2]+cf3[1,3])
+sens_Class1
+
+sens_Class2 <- cf3[2,2]/(cf3[2,1]+cf3[2,2]+cf3[2,3])
+sens_Class2
+
+sens_Class3 <- cf3[3,3]/(cf3[3,1]+cf3[3,2]+cf3[3,3])
+sens_Class3
+
+```
+
+## SMOTE
+
+```{r}
+library(DMwR)
+# Train5_multiclass$NPS_Status <- as.character.factor(Train5_multiclass$NPS_Status)
+Train5_multiclass$NPS_Status <- factor(Train5_multiclass$NPS_Status)
+
+
+Train5_multiclass <- as.data.frame(Train5_multiclass)
+sum(is.na(Train5_multiclass))
+sum(is.na(data_smote))
+dim(Train5_multiclass)
+dim(data_smote)
+
+data_smote <- DMwR::SMOTE(NPS_Status~., data = Train5_multiclass
+                    , perc.over = 500, k =10, 
+                    perc.under = 100)
+
+data_smote2 <- data_smote[complete.cases(data_smote), ]
+dim(data_smote2)
+
+
+
+table(under$NPS_Status)
+
+boost_smote <- boosting(NPS_Status~., data = data_smote2, boos = T,
+                        mfinal = 300, coeflearn = "Breiman",
+                   control=rpart.control(maxdepth=4, cp =0.01, minsplit =10))
+
+
+adaboost_pred_smote <- predict.boosting(boost_smote,newdata=Test6_multiclass)
+# adaboost_pred
+
+cf4 <- adaboost_pred_smote$confusion
+cf4
+boost_err2 <- adaboost_pred_smote$error
+
+acc4 <-  1-boost_err2
+acc4
+
+sens_Class1 <- cf4[1,1]/(cf4[1,1]+cf4[1,2]+cf4[1,3])
+sens_Class1
+
+sens_Class2 <- cf4[2,2]/(cf4[2,1]+cf4[2,2]+cf4[2,3])
+sens_Class2
+
+sens_Class3 <- cf4[3,3]/(cf4[3,1]+cf4[3,2]+cf4[3,3])
+sens_Class3
+
+
+```
+
