@@ -9,3 +9,6 @@ The dataset consists of variables representing Patient information like basic in
 The questionnare variables are converted to Ordinal factors before performing the analysis. Performed Step-wise Logistic regression for Feature selection. Also there was an class imbalance issue and hence used oversampling and undersampling techniques to handle the class imbalance. There were variables leading to quasi-complete seperation. Dropped those variables and obtained the top significant variables and built ML models.
 
 Built RandomForest and Adaboost models for predicting the Net promoters. Initially converted the multi class target variable to binary by combining Promoter and Passive as one single class. Compared the performance of the models on both Binary and Multi class classification problem. Random forest model gave better results.
+
+# Final Recommendation
+Organization needs to identify the areas where Detractor customers were dissatisfied based on the scores provided in the survey and work toward improvement in those areas. If many Detractors unanimously provide negative feedback for a particular service, then maybe that service needs to be looked into. Offer promotions with highlights for the kind of Hospital services the Detractors are looking for.  
